@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Watson - Tracker Patologie Domus Salutis</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --primary-hover: #0056b3;
+            --success: #28a745;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --copied-bg: #e8f5e9;
+            --copied-text: #6c757d;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+
+        /* Controlli superiori */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            cursor: pointer;
+            padding: 8px 16px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-warning { background-color: #ffc107; color: #000; }
+        .btn-warning:hover { background-color: #e0a800; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+
+        /* Stile Tabella */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #343a40;
+            color: white;
+        }
+
+        tr:hover { background-color: #f1f1f1; }
+
+        /* Stati copiati */
+        .row-copied {
+            background-color: var(--copied-bg);
+            color: var(--copied-text);
+        }
+
+        .row-copied td:nth-child(2) {
+            text-decoration: line-through;
+        }
+
+        .btn-copy {
+            background-color: var(--primary);
+        }
+
+        .btn-copied {
+            background-color: var(--success);
+        }
+        
+        .btn-copied::before { content: "✓ "; }
+
+        @media (max-width: 600px) {
+            table, thead, tbody, th, td, tr { display: block; }
+            th { display: none; }
+            td { position: relative; padding-left: 50%; text-align: right; }
+            td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 15px;
+                width: 45%;
+                text-align: left;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Dr. Watson - Generatore Code</h1>
+    
+    <div class="controls">
+        <button class="btn btn-warning" onclick="exportBackup()">💾 Esporta Backup (JSON)</button>
+        <input type="file" id="importFile" style="display:none" onchange="importBackup(event)" accept=".json">
+        <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📂 Importa Backup</button>
+        <button class="btn btn-danger" onclick="resetProgress()">🗑️ Reset Dati</button>
+    </div>
+
+    <table id="patologieTable">
+        <thead>
+            <tr>
+                <th>Reparto</th>
+                <th>Patologia</th>
+                <th>Azione</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Generato dinamicamente da JS -->
+        </tbody>
+    </table>
+
+    <script>
+        // Il nostro database statico
+        const patologie = [
+            { reparto: "Comune", nome: "Coma e Stati Vegetativi" },
+            { reparto: "Comune", nome: "GCA (Grave Cerebrolesione Acquisita)" },
+            { reparto: "Comune", nome: "Ictus Ischemico ed Emorragico" },
+            { reparto: "Comune", nome: "Malattia di Parkinson" },
+            { reparto: "Comune", nome: "Scompenso Cardiaco Avanzato" },
+            { reparto: "Comune", nome: "BPCO (Broncopneumopatia Cronica Ostruttiva) Stadio IV" },
+            { reparto: "Comune", nome: "Sindrome Ipocinetica / Sindrome da Allettamento Prolungato" },
+            { reparto: "Comune", nome: "Polineuropatia da Malattia Critica (CIP/CIM)" },
+            { reparto: "Comune", nome: "Complicanze Neurologiche/Vascolari da Diabete Mellito" },
+            { reparto: "Comune", nome: "Ipertensione Arteriosa con Danno d'Organo" },
+            { reparto: "Riabilitazione Neurologica", nome: "SLA (Sclerosi Laterale Amiotrofica)" },
+            { reparto: "Riabilitazione Neurologica", nome: "Lesioni Midollari Traumatiche (Tetraplegia, Paraplegia)" },
+            { reparto: "Riabilitazione Neurologica", nome: "Sclerosi Multipla" },
+            { reparto: "Riabilitazione Neurologica", nome: "Sindrome di Guillain-Barré" },
+            { reparto: "Riabilitazione Neurologica", nome: "Corea di Huntington" },
+            { reparto: "Riabilitazione Neurologica", nome: "Mielite Trasversa" },
+            { reparto: "Riabilitazione Neurologica", nome: "Atassia Cerebellare" },
+            { reparto: "Riabilitazione Neurologica", nome: "Neuropatie Periferiche Severe" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Infarto Miocardico Acuto (Fase post-acuta)" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Esiti di Bypass Aorto-Coronarico" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Sostituzione Valvolare (Aortica/Mitralica)" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Cardiopatia Ischemica Cronica" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Arteriopatia Obliterante Periferica (AOP)" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Fibrillazione Atriale (Implicazioni da sforzo)" },
+            { reparto: "Riabilitazione Cardiologica", nome: "Post-impianto di Pacemaker o ICD" },
+            { reparto: "Riabilitazione Neurogeriatrica", nome: "Demenza Vascolare" },
+            { reparto: "Riabilitazione Neurogeriatrica", nome: "Demenza di Alzheimer (Gestione riabilitativa)" },
+            { reparto: "Riabilitazione Neurogeriatrica", nome: "Delirium Post-Operatorio" },
+            { reparto: "Riabilitazione Neurogeriatrica", nome: "Frattura di Femore nel paziente geriatrico" },
+            { reparto: "Riabilitazione Neurogeriatrica", nome: "Sarcopenia Severa dell'Anziano" },
+            { reparto: "Riabilitazione Neurogeriatrica", nome: "Instabilità Posturale e Sindrome da Cadute" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Politrauma Stradale / Traumi Complessi" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Amputazioni di Arto e Gestione Protesica" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Tetraparesi e Paraparesi (Non traumatiche)" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Mielopatia Spondilogena" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Emiparesi (Destra e Sinistra)" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Esiti di Protesi Articolare Complessa" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Artrosi Severa Invalidante" },
+            { reparto: "Riabilitazione Polifunzionale", nome: "Osteoporosi con Fratture da Fragilità" }
+        ];
+
+        // Oggetto per tracciare lo stato (usa l'indice dell'array come chiave)
+        let statiCopiati = JSON.parse(localStorage.getItem('drWatsonTracker')) || {};
+
+        function renderTable() {
+            const tbody = document.querySelector('#patologieTable tbody');
+            tbody.innerHTML = '';
+
+            patologie.forEach((item, index) => {
+                const isCopied = statiCopiati[index];
+                const tr = document.createElement('tr');
+                
+                if (isCopied) {
+                    tr.classList.add('row-copied');
+                }
+
+                tr.innerHTML = `
+                    <td data-label="Reparto">${item.reparto}</td>
+                    <td data-label="Patologia">${item.nome}</td>
+                    <td data-label="Azione">
+                        <button class="btn ${isCopied ? 'btn-copied' : 'btn-copy'}" 
+                                onclick="copiaTesto(${index}, '${item.nome.replace(/'/g, "\\'")}')">
+                            ${isCopied ? 'Copiato' : '📋 Copia'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function copiaTesto(index, testo) {
+            navigator.clipboard.writeText(testo).then(() => {
+                // Aggiorna lo stato, salva e ricarica la UI
+                statiCopiati[index] = true;
+                salvaDati();
+                renderTable();
+            }).catch(err => {
+                console.error('Errore durante la copia: ', err);
+                alert("Errore nella copia degli appunti. Controlla i permessi del browser.");
+            });
+        }
+
+        function salvaDati() {
+            localStorage.setItem('drWatsonTracker', JSON.stringify(statiCopiati));
+        }
+
+        // Funzione di Backup (Disaster Recovery per la cache svuotata)
+        function exportBackup() {
+            if (Object.keys(statiCopiati).length === 0) {
+                alert("Nessun progresso da salvare.");
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(statiCopiati));
+            const downloadAnchorElem = document.createElement('a');
+            downloadAnchorElem.setAttribute("href", dataStr);
+            downloadAnchorElem.setAttribute("download", "dr_watson_backup.json");
+            document.body.appendChild(downloadAnchorElem);
+            downloadAnchorElem.click();
+            downloadAnchorElem.remove();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    statiCopiati = JSON.parse(e.target.result);
+                    salvaDati();
+                    renderTable();
+                    alert("Backup ripristinato con successo!");
+                } catch (err) {
+                    alert("Errore nella lettura del file di backup JSON.");
+                }
+            };
+            reader.readAsText(file);
+            // Resetta l'input per permettere re-importazioni dello stesso file
+            event.target.value = '';
+        }
+
+        function resetProgress() {
+            if(confirm("Attenzione: vuoi azzerare tutta la cronologia delle patologie studiate? L'azione è irreversibile senza un backup.")) {
+                statiCopiati = {};
+                salvaDati();
+                renderTable();
+            }
+        }
+
+        // Inizializzazione al caricamento
+        renderTable();
+    </script>
+</body>
+</html>
